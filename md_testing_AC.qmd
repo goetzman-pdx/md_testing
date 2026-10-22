@@ -1,0 +1,165 @@
+---
+title: "Matryoshka Doll Testing"
+format: html
+---
+
+The dataset is the n = 442, p = 64 Diabetes dataset (included in this Git repo) commonly used as an example dataset for variable selection.
+
+The Peter Hoff, *A First Course In Bayesian Statistical Methods*, has the following results on pg. 170, which is a dataset and analysis that has the added benefit of what Daniel lecutred as Gospel in Stat572:
+
+![Hoff's results](hoff_pg_170.png)
+
+Using the LMMCMC package for S = 10,000:
+
+```{r}
+load("diabetes.RData")
+# Testing Daniel's official LMMCMC package for Matryoshka Doll
+library(LMMCMC)
+md <- lm.mcmc(diabetes$y, diabetes$X, model.prior = matryoshka_doll.prior(), coef.prior = hyper_g.prior(), burnin.iterations = 0, mcmc.iterations = 10000)
+
+md.model.vals = exp(md$logmarg+log(md$priorprobs))
+md.model.vals = md.model.vals/sum(md.model.vals) # scale probabilities by normalizing constant estimate
+nMod.md = length(md.model.vals)
+md.models = lapply(1:nMod.md,function(x) md$which[[x]][-1])
+
+md.pred.probs = rep(0,ncol(diabetes$X))
+for(i in 1:nMod.md){
+  md.pred.probs[md.models[[i]]] = md.pred.probs[md.models[[i]]] + md.model.vals[i]
+}
+
+# s_mcmc <- length(((md))$which)
+# marg_inc_mat <- matrix(0, nrow=s_mcmc, ncol=64, byrow=TRUE)
+# for (loop in 1:s_mcmc) {
+# 
+#   marg_inc_mat[loop, unlist(((md))$which[loop])] <- 1
+# 
+# }
+# # acceptance rate
+# s_mcmc/10000
+# results <- apply(marg_inc_mat, 2, mean)
+# results
+barplot(md.pred.probs, names.arg=seq(1, 64, length=64), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
+```
+
+Note how different the results are from, say, S = 10M...
+
+```{r}
+load("diabetes.RData")
+# Testing Daniel's official LMMCMC package for Matryoshka Doll
+library(LMMCMC)
+md <- lm.mcmc(diabetes$y, diabetes$X, model.prior = matryoshka_doll.prior(), coef.prior = hyper_g.prior(), burnin.iterations = 0, mcmc.iterations = 10000000)
+#print(md)
+
+md.model.vals = exp(md$logmarg+log(md$priorprobs))
+md.model.vals = md.model.vals/sum(md.model.vals) # scale probabilities by normalizing constant estimate
+nMod.md = length(md.model.vals)
+md.models = lapply(1:nMod.md,function(x) md$which[[x]][-1])
+
+md.pred.probs = rep(0,ncol(diabetes$X))
+for(i in 1:nMod.md){
+  md.pred.probs[md.models[[i]]] = md.pred.probs[md.models[[i]]] + md.model.vals[i]
+}
+
+# s_mcmc <- length(((md))$which)
+# marg_inc_mat <- matrix(0, nrow=s_mcmc, ncol=64, byrow=TRUE)
+# for (loop in 1:s_mcmc) {
+# 
+#   marg_inc_mat[loop, unlist(((md))$which[loop])] <- 1
+# 
+# }
+# # acceptance rate
+# s_mcmc/10000000
+# results <- apply(marg_inc_mat, 2, mean)
+# results
+barplot(md.pred.probs, names.arg=seq(1, 64, length=64), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
+```
+
+The rest of this is the Gibbs Sampler that I wrote over the Summer.
+
+```{r}
+#| eval: false
+# ordered bell numbers
+n <- 64
+an <- c(1, 3)
+hold <- 1
+for (o_loop in 3:n) {
+  
+  hold <- 0
+  for (i_loop in 1:(o_loop-1)) {
+    
+    hold <- choose(o_loop, i_loop)*an[(o_loop-i_loop)] + hold
+    
+  }
+  hold <- hold + 1
+  an <- c(an, hold)
+  
+}
+an
+rat <- matrix(, nrow=231, ncol=1, byrow=TRUE)
+rat[1] <- 1
+for (loop in 1:63) {
+  
+  rat[loop+1] <- an[loop]/an[loop+1]
+  #rat[loop+1] <- rat[loop+1]*(loop+1)
+  
+}
+for (loop in 64:(231-1)) {
+
+  rat[loop+1] <- log(2)/(loop+1)
+
+}
+rat
+```
+
+```{r}
+#| eval: false
+# CAUTION!!!!!  This Gibb's sampler takes like 30-45 minutes to run even on a fast computer btw
+# Gibbs functions
+p_test <- 21
+X_test <- X_design[,1:p_test]
+getZ <- function(f_md, f_j, f_ka, f_kb, f_x_a, f_x_b) {
+  
+  f_sigma_a <- try(summary(lm(y ~ -1 + f_x_a))$sigma^2, silent=TRUE)
+  f_sigma_b <- try(summary(lm(y ~ -1 + f_x_b))$sigma^2, silent=TRUE)
+  if (f_ka==0) { SSRa <- t(y)%*%(diag(rep(1, n)))%*%y; f_sigma_a <- mean(y^2) } else { SSRa <- t(y)%*%(diag(rep(1, n)) - (g/(g+1))*(f_x_a%*%solve(t(f_x_a)%*%f_x_a)%*%t(f_x_a)))%*%y }
+  if (f_kb==0) { SSRb <- t(y)%*%(diag(rep(1, n)))%*%y; f_sigma_b <- mean(y^2) } else { SSRb <- t(y)%*%(diag(rep(1, n)) - (g/(g+1))*(f_x_b%*%solve(t(f_x_b)%*%f_x_b)%*%t(f_x_b)))%*%y }
+  oj <- f_md*(1+n)^((f_kb - f_ka)/2)*(f_sigma_a/f_sigma_b)^(1/2)*((f_sigma_b + SSRb)/(f_sigma_a + SSRa))^((n+1)/2)
+  return(rbinom(1, 1, oj/(1+oj)))
+  
+}
+
+# initialize variables
+z <- rep(0, p_test)
+n <- length(y); g <- length(y)
+s <- 10
+z_s <- matrix(, nrow=s, ncol=p_test, byrow=TRUE)
+z_s[1,] <- z
+for (loop in 2:s) {
+  
+  for (j in 1:p_test) {
+    
+    zb <- z
+    zb[j] <- 1-zb[j]
+    ka <- sum(z)
+    kb <- sum(zb)
+    if (z[j] == 1) { md <- rat[(min(ka, kb)+1)] } else { md <- 1/rat[(min(ka, kb)+1)] }
+    if (z[j] == 1) { z[j] <- getZ(md, j, ka, kb, X_test[,z==1], X_test[,zb==1]) } else { z[j] <- 1-getZ(md, j, ka, kb, X_test[,z==1], X_test[,zb==1]) }
+    
+  }
+  z_s[loop,] <- z
+  
+}
+
+results <- apply(z_s, 2, mean)
+results
+#1-50
+barplot(results[1:50], names.arg=seq(1, 50, length=50), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
+#51-100
+#barplot(results[51:100], names.arg=seq(51, 100, length=50), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
+#101-150
+#barplot(results[101:150], names.arg=seq(101, 150, length=50), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
+#151-200
+#barplot(results[151:200], names.arg=seq(151, 200, length=50), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
+#201-231
+#barplot(results[201:231], names.arg=seq(201, 231, length=31), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
+```
