@@ -9,48 +9,24 @@ The Peter Hoff, *A First Course In Bayesian Statistical Methods*, has the follow
 
 ![Hoff's results](hoff_pg_170.png)
 
-Using the LMMCMC package for S = 10,000:
+Using the LMMCMC package for S = 100,000:
 
 ```{r}
 load("diabetes.RData")
 # Testing Daniel's official LMMCMC package for Matryoshka Doll
 library(LMMCMC)
-md <- lm.mcmc(diabetes$y, diabetes$X, model.prior = matryoshka_doll.prior(), coef.prior = hyper_g.prior(), burnin.iterations = 0, mcmc.iterations = 10000)
-#print(md)
-s_mcmc <- length(((md))$which)
-marg_inc_mat <- matrix(0, nrow=s_mcmc, ncol=64, byrow=TRUE)
-for (loop in 1:s_mcmc) {
+md <- lm.mcmc(diabetes$y, diabetes$X, model.prior = matryoshka_doll.prior(), coef.prior = hyper_g.prior(), burnin.iterations = 0, mcmc.iterations = 100000)
 
-  marg_inc_mat[loop, unlist(((md))$which[loop])] <- 1
-
+model_weights <- exp(md$logmarg+log(md$priorprobs))
+model_weights <- model_weights/sum(model_weights) # normalize
+n <- length(model_weights)
+models <- lapply(1:n, function(x) md$which[[x]][-1])
+marg_inc_probs <- rep(0,64)
+for(loop in 1:n){
+  marg_inc_probs[models[[loop]]] <- marg_inc_probs[models[[loop]]] + model_weights[loop]
 }
-# acceptance rate
-s_mcmc/10000
-results <- apply(marg_inc_mat, 2, mean)
-results
-barplot(results[1:64], names.arg=seq(1, 64, length=64), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
-```
 
-Note how different the results are from, say, S = 10M...
-
-```{r}
-load("diabetes.RData")
-# Testing Daniel's official LMMCMC package for Matryoshka Doll
-library(LMMCMC)
-md <- lm.mcmc(diabetes$y, diabetes$X, model.prior = matryoshka_doll.prior(), coef.prior = hyper_g.prior(), burnin.iterations = 0, mcmc.iterations = 10000000)
-#print(md)
-s_mcmc <- length(((md))$which)
-marg_inc_mat <- matrix(0, nrow=s_mcmc, ncol=64, byrow=TRUE)
-for (loop in 1:s_mcmc) {
-
-  marg_inc_mat[loop, unlist(((md))$which[loop])] <- 1
-
-}
-# acceptance rate
-s_mcmc/10000000
-results <- apply(marg_inc_mat, 2, mean)
-results
-barplot(results[1:64], names.arg=seq(1, 64, length=64), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
+barplot(marg_inc_probs, names.arg=seq(1, 64, length=64), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
 ```
 
 The rest of this is the Gibbs Sampler that I wrote over the Summer.
