@@ -16,16 +16,17 @@ load("diabetes.RData")
 # Testing Daniel's official LMMCMC package for Matryoshka Doll
 library(LMMCMC)
 md <- lm.mcmc(diabetes$y, diabetes$X, model.prior = matryoshka_doll.prior(), coef.prior = hyper_g.prior(), burnin.iterations = 0, mcmc.iterations = 100000)
-
-model_weights <- exp(md$logmarg+log(md$priorprobs))
-model_weights <- model_weights/sum(model_weights) # normalize
+sum(md$postprobs.RN)
+#model_weights <- exp(md$logmarg+log(md$priorprobs))
+#model_weights <- model_weights/sum(model_weights) # normalize
+model_weights <- md$postprobs.RN
 n <- length(model_weights)
 models <- lapply(1:n, function(x) md$which[[x]][-1])
 marg_inc_probs <- rep(0,64)
 for(loop in 1:n){
   marg_inc_probs[models[[loop]]] <- marg_inc_probs[models[[loop]]] + model_weights[loop]
 }
-
+marg_inc_probs
 barplot(marg_inc_probs, names.arg=seq(1, 64, length=64), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
 ```
 
