@@ -119,3 +119,25 @@ barplot(results[1:50], names.arg=seq(1, 50, length=50), main="Matryoshka Doll Pr
 #201-231
 #barplot(results[201:231], names.arg=seq(201, 231, length=31), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
 ```
+
+This section is simple Backwards Selection:
+
+```{r}
+load("diabetes.RData")
+model_back_full <- lm(diabetes$y ~ diabetes$X)
+summary(model_back_full)
+model_back_step1 <- lm(diabetes$y ~ diabetes$X[,"sex"] + diabetes$X[,"bmi"] + diabetes$X[,"map"] + diabetes$X[, "age:sex"])
+summary(model_back_step1)
+model_back_step2 <- lm(diabetes$y ~ diabetes$X[,"bmi"] + diabetes$X[,"map"] + diabetes$X[, "age:sex"])
+summary(model_back_step2)
+```
+
+This section is a LASSO:
+
+```{r}
+library(glmnet) # lasso
+cv_lasso <- cv.glmnet(x=diabetes$X, y=diabetes$y, alpha = 1, intercept=TRUE, family = "gaussian")
+plot(cv_lasso)
+model_lasso <- glmnet(x=diabetes$X, y=diabetes$y, alpha = 1, intercept=TRUE, family = "gaussian", lambda = cv_lasso$lambda.min)
+coef(model_lasso, lambda = cv_lasso$lambda.min)
+```
