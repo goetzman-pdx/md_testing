@@ -9,6 +9,10 @@ The Peter Hoff, *A First Course In Bayesian Statistical Methods*, has the follow
 
 ![Hoff's results](hoff_pg_170.png)
 
+```{r}
+library(tidyverse)
+```
+
 Using the LMMCMC package for S = 100,000:
 
 ```{r}
@@ -26,8 +30,10 @@ marg_inc_probs <- rep(0,64)
 for(loop in 1:n){
   marg_inc_probs[models[[loop]]] <- marg_inc_probs[models[[loop]]] + model_weights[loop]
 }
-marg_inc_probs
-barplot(marg_inc_probs, names.arg=seq(1, 64, length=64), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
+#marg_inc_probs
+#barplot(marg_inc_probs, names.arg=seq(1, 64, length=64), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
+df <- as.data.frame(marg_inc_probs)
+ggplot(df, aes(x = seq(1, 64, length=64), y = marg_inc_probs)) + geom_col(fill = "#0000FF") + labs(title = expression(bold(paste("Marginal Inclusion Probability"))), subtitle = expression(paste("Matryoshka Doll Prior, ", eta, " = 1")), x = "regressor index", y = expression(paste("P(", z[j], " = 1|y, X)"))) + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 32, face = "bold"), plot.subtitle = element_text(hjust = 0.5, size = 28, face = "bold"), axis.text = element_text(size = 18), axis.title.x = element_text(size = 28), axis.title.y = element_text(size = 28))
 ```
 
 The rest of this is the Gibbs Sampler that I wrote over the Summer.
