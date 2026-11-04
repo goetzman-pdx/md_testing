@@ -77,8 +77,6 @@ rat
 #| eval: false
 # CAUTION!!!!!  This Gibb's sampler takes like 30-45 minutes to run even on a fast computer btw
 # Gibbs functions
-p_test <- 21
-X_test <- X_design[,1:p_test]
 getZ <- function(f_md, f_j, f_ka, f_kb, f_x_a, f_x_b) {
   
   f_sigma_a <- try(summary(lm(y ~ -1 + f_x_a))$sigma^2, silent=TRUE)
@@ -91,14 +89,16 @@ getZ <- function(f_md, f_j, f_ka, f_kb, f_x_a, f_x_b) {
 }
 
 # initialize variables
-z <- rep(0, p_test)
+X_test <- diabetes$X
+y <- diabetes$y
+z <- rep(0, 64)
 n <- length(y); g <- length(y)
 s <- 10
-z_s <- matrix(, nrow=s, ncol=p_test, byrow=TRUE)
+z_s <- matrix(, nrow=s, ncol=64, byrow=TRUE)
 z_s[1,] <- z
 for (loop in 2:s) {
   
-  for (j in 1:p_test) {
+  for (j in 1:64) {
     
     zb <- z
     zb[j] <- 1-zb[j]
@@ -114,16 +114,8 @@ for (loop in 2:s) {
 
 results <- apply(z_s, 2, mean)
 results
-#1-50
-barplot(results[1:50], names.arg=seq(1, 50, length=50), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
-#51-100
-#barplot(results[51:100], names.arg=seq(51, 100, length=50), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
-#101-150
-#barplot(results[101:150], names.arg=seq(101, 150, length=50), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
-#151-200
-#barplot(results[151:200], names.arg=seq(151, 200, length=50), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
-#201-231
-#barplot(results[201:231], names.arg=seq(201, 231, length=31), main="Matryoshka Doll Prior, eta = 1", xlab="regressor index", ylab="P(zj=1|y,X)")
+df <- as.data.frame(results)
+ggplot(df, aes(x = seq(1, 64, length=64), y = results)) + geom_col(fill = "#0000FF") + labs(title = expression(bold(paste("Marginal Inclusion Probability"))), subtitle = expression(paste("Uniform Prior")), x = "regressor index", y = expression(paste("P(", z[j], " = 1|y, X)"))) + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 32, face = "bold"), plot.subtitle = element_text(hjust = 0.5, size = 28, face = "bold"), axis.text = element_text(size = 18), axis.title.x = element_text(size = 28), axis.title.y = element_text(size = 28))
 ```
 
 This section is simple Backwards Selection:
