@@ -36,7 +36,7 @@ df <- as.data.frame(marg_inc_probs)
 ggplot(df, aes(x = seq(1, 64, length=64), y = marg_inc_probs)) + geom_col(fill = "#0000FF") + labs(title = expression(bold(paste("Marginal Inclusion Probability"))), subtitle = expression(paste("Matryoshka Doll Prior, ", eta, " = 1")), x = "regressor index", y = expression(paste("P(", z[j], " = 1|y, X)"))) + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 32, face = "bold"), plot.subtitle = element_text(hjust = 0.5, size = 28, face = "bold"), axis.text = element_text(size = 18), axis.title.x = element_text(size = 28), axis.title.y = element_text(size = 28))
 ```
 
-The rest of this is the Gibbs Sampler that I wrote over the Summer.
+This is the Ordered Bell Numbers:
 
 ```{r}
 #| eval: false
@@ -73,6 +73,8 @@ for (loop in 64:(231-1)) {
 rat
 ```
 
+This is the Matryoshka Doll Gibbs sampler:
+
 ```{r}
 #| eval: false
 # CAUTION!!!!!  This Gibb's sampler takes like 30-45 minutes to run even on a fast computer btw
@@ -89,11 +91,13 @@ getZ <- function(f_md, f_j, f_ka, f_kb, f_x_a, f_x_b) {
 }
 
 # initialize variables
-X_test <- diabetes$X
-y <- diabetes$y
+X <- as.matrix(diabetes$X)
+y <- as.matrix(diabetes$y)
+for (loop in 1:64) { X[,loop] <- scale(X[,loop]) }
+y[,1] <- scale(y[,1])
 z <- rep(0, 64)
 n <- length(y); g <- length(y)
-s <- 10
+s <- 1000
 z_s <- matrix(, nrow=s, ncol=64, byrow=TRUE)
 z_s[1,] <- z
 for (loop in 2:s) {
@@ -105,7 +109,7 @@ for (loop in 2:s) {
     ka <- sum(z)
     kb <- sum(zb)
     if (z[j] == 1) { md <- rat[(min(ka, kb)+1)] } else { md <- 1/rat[(min(ka, kb)+1)] }
-    if (z[j] == 1) { z[j] <- getZ(md, j, ka, kb, X_test[,z==1], X_test[,zb==1]) } else { z[j] <- 1-getZ(md, j, ka, kb, X_test[,z==1], X_test[,zb==1]) }
+    if (z[j] == 1) { z[j] <- getZ(md, j, ka, kb, X[,z==1], X[,zb==1]) } else { z[j] <- 1-getZ(md, j, ka, kb, X[,z==1], X[,zb==1]) }
     
   }
   z_s[loop,] <- z
@@ -116,6 +120,66 @@ results <- apply(z_s, 2, mean)
 results
 df <- as.data.frame(results)
 ggplot(df, aes(x = seq(1, 64, length=64), y = results)) + geom_col(fill = "#0000FF") + labs(title = expression(bold(paste("Marginal Inclusion Probability"))), subtitle = expression(paste("Uniform Prior")), x = "regressor index", y = expression(paste("P(", z[j], " = 1|y, X)"))) + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 32, face = "bold"), plot.subtitle = element_text(hjust = 0.5, size = 28, face = "bold"), axis.text = element_text(size = 18), axis.title.x = element_text(size = 28), axis.title.y = element_text(size = 28))
+```
+
+This is the Uniform Prior Gibbs sampler:
+
+```{r}
+#| eval: false
+# CAUTION!!!!!  This Gibb's sampler takes like 30-45 minutes to run even on a fast computer btw
+# Gibbs functions
+getZ <- function(f_j, f_ka, f_kb, f_x_a, f_x_b) {
+  
+  f_sigma_a <- try(summary(lm(y ~ -1 + f_x_a))$sigma^2, silent=TRUE)
+  f_sigma_b <- try(summary(lm(y ~ -1 + f_x_b))$sigma^2, silent=TRUE)
+  if (f_ka==0) { SSRa <- t(y)%*%(diag(rep(1, n)))%*%y; f_sigma_a <- mean(y^2) } else { SSRa <- t(y)%*%(diag(rep(1, n)) - (g/(g+1))*(f_x_a%*%solve(t(f_x_a)%*%f_x_a)%*%t(f_x_a)))%*%y }
+  if (f_kb==0) { SSRb <- t(y)%*%(diag(rep(1, n)))%*%y; f_sigma_b <- mean(y^2) } else { SSRb <- t(y)%*%(diag(rep(1, n)) - (g/(g+1))*(f_x_b%*%solve(t(f_x_b)%*%f_x_b)%*%t(f_x_b)))%*%y }
+  oj <- (1+n)^((f_kb - f_ka)/2)*(f_sigma_a/f_sigma_b)^(1/2)*((f_sigma_b + SSRb)/(f_sigma_a + SSRa))^((n+1)/2)
+  return(rbinom(1, 1, oj/(1+oj)))
+  
+}
+
+# initialize variables
+X <- as.matrix(diabetes$X)
+y <- as.matrix(diabetes$y)
+for (loop in 1:64) { X[,loop] <- scale(X[,loop]) }
+y[,1] <- scale(y[,1])
+z <- rep(0, 64)
+n <- length(y); g <- length(y)
+s <- 1000
+z_s <- matrix(, nrow=s, ncol=64, byrow=TRUE)
+z_s[1,] <- z
+for (loop in 2:s) {
+  
+  for (j in 1:64) {
+    
+    zb <- z
+    zb[j] <- 1-zb[j]
+    ka <- sum(z)
+    kb <- sum(zb)
+    if (z[j] == 1) { z[j] <- getZ(j, ka, kb, X[,z==1], X[,zb==1]) } else { z[j] <- 1-getZ(j, ka, kb, X[,z==1], X[,zb==1]) }
+    
+  }
+  z_s[loop,] <- z
+  
+}
+
+results <- apply(z_s, 2, mean)
+results
+df <- as.data.frame(results)
+ggplot(df, aes(x = seq(1, 64, length=64), y = results)) + geom_col(fill = "#0000FF") + labs(title = expression(bold(paste("Marginal Inclusion Probability"))), subtitle = expression(paste("Uniform Prior")), x = "regressor index", y = expression(paste("P(", z[j], " = 1|y, X)"))) + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 32, face = "bold"), plot.subtitle = element_text(hjust = 0.5, size = 28, face = "bold"), axis.text = element_text(size = 18), axis.title.x = element_text(size = 28), axis.title.y = element_text(size = 28))
+```
+
+This section is simple Backwards Selection:
+
+```{r}
+load("diabetes.RData")
+model_back_full <- lm(diabetes$y ~ diabetes$X)
+summary(model_back_full)
+model_back_step1 <- lm(diabetes$y ~ diabetes$X[,"sex"] + diabetes$X[,"bmi"] + diabetes$X[,"map"] + diabetes$X[, "age:sex"])
+summary(model_back_step1)
+model_back_step2 <- lm(diabetes$y ~ diabetes$X[,"bmi"] + diabetes$X[,"map"] + diabetes$X[, "age:sex"])
+summary(model_back_step2)
 ```
 
 This section is simple Backwards Selection:
