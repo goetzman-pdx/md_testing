@@ -239,6 +239,10 @@ df_long <- dfr |>
     names_to = "prior",       # New column for old headers
     values_to = "values"       # New column for values
   )
-head(df_long)
-ggplot(df_long, aes(x = index, y = values, fill = prior)) + geom_col(position = "dodge") + labs(title = expression(bold(paste("Marginal Inclusion Probability"))), subtitle = expression(paste("Uniform Prior vs Matryoshka Doll Prior")), x = "regressor index", y = expression(paste("P(", z[j], " = 1|Y, X)"))) + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 32, face = "bold"), plot.subtitle = element_text(hjust = 0.5, size = 28, face = "bold"), axis.text = element_text(size = 18), axis.title.x = element_text(size = 28), axis.title.y = element_text(size = 28), legend.position = "top")
+facets <- as.data.frame(c(rep(1, 16), rep(2, 16), rep(3, 16), rep(4, 16)))
+colnames(facets) <- c("facets")
+df_long <- cbind(df_long, facets)
+df_long
+dividers <- seq(1.5, 64 - 0.5, by = 1)
+ggplot(df_long, aes(x = index, y = values, fill = prior)) + geom_col(position = "dodge") + scale_fill_manual(values = c("md" = "#FF9D00", "uniform" = "#0091FF")) + geom_hline(yintercept = 0.95, linetype = "dashed", color = "red", linewidth = 2) + geom_vline(xintercept = dividers,color = "gray80",linewidth = 0.4) + labs(title = expression(bold(paste("Marginal Inclusion Probability"))), subtitle = expression(paste("Matryoshka Doll Prior vs Uniform Prior")), x = "regressor index", y = expression(paste("P(", z[j], " = 1|Y, X)"))) + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 32, face = "bold"), plot.subtitle = element_text(hjust = 0.5, size = 28, face = "bold"), axis.text = element_text(size = 18), axis.title.x = element_text(size = 28), axis.title.y = element_text(size = 28), legend.position = "top", legend.title = element_blank(), legend.text = element_text(size=22), panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank())
 ```
