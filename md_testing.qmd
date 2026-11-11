@@ -11,15 +11,16 @@ The Peter Hoff, *A First Course In Bayesian Statistical Methods*, has the follow
 
 ```{r}
 library(tidyverse)
+load("diabetes.RData")
 ```
 
 Using the LMMCMC package for S = 100,000:
 
 ```{r}
-load("diabetes.RData")
 # Testing Daniel's official LMMCMC package for Matryoshka Doll
 library(LMMCMC)
-md <- lm.mcmc(diabetes$y, diabetes$X, model.prior = matryoshka_doll.prior(), coef.prior = hyper_g.prior(), burnin.iterations = 0, mcmc.iterations = 100000)
+y <- as.data.frame(scale(diabetes$y))
+md <- lm.mcmc(y, diabetes$X, model.prior = matryoshka_doll.prior(), coef.prior = hyper_g.prior(), burnin.iterations = 0, mcmc.iterations = 100000)
 sum(md$postprobs.RN)
 #model_weights <- exp(md$logmarg+log(md$priorprobs))
 #model_weights <- model_weights/sum(model_weights) # normalize
@@ -93,7 +94,6 @@ getZ <- function(f_md, f_j, f_ka, f_kb, f_x_a, f_x_b) {
 # initialize variables
 X <- as.matrix(diabetes$X)
 y <- as.matrix(diabetes$y)
-for (loop in 1:64) { X[,loop] <- scale(X[,loop]) }
 y[,1] <- scale(y[,1])
 z <- rep(0, 64)
 n <- length(y); g <- length(y)
@@ -142,7 +142,6 @@ getZ <- function(f_j, f_ka, f_kb, f_x_a, f_x_b) {
 # initialize variables
 X <- as.matrix(diabetes$X)
 y <- as.matrix(diabetes$y)
-for (loop in 1:64) { X[,loop] <- scale(X[,loop]) }
 y[,1] <- scale(y[,1])
 z <- rep(0, 64)
 n <- length(y); g <- length(y)
@@ -170,36 +169,28 @@ df <- as.data.frame(results)
 ggplot(df, aes(x = seq(1, 64, length=64), y = results)) + geom_col(fill = "#0000FF") + labs(title = expression(bold(paste("Marginal Inclusion Probability"))), subtitle = expression(paste("Uniform Prior")), x = "regressor index", y = expression(paste("P(", z[j], " = 1|y, X)"))) + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 32, face = "bold"), plot.subtitle = element_text(hjust = 0.5, size = 28, face = "bold"), axis.text = element_text(size = 18), axis.title.x = element_text(size = 28), axis.title.y = element_text(size = 28))
 ```
 
-This section is simple Backwards Selection:
-
-```{r}
-load("diabetes.RData")
-model_back_full <- lm(diabetes$y ~ diabetes$X)
-summary(model_back_full)
-model_back_step1 <- lm(diabetes$y ~ diabetes$X[,"sex"] + diabetes$X[,"bmi"] + diabetes$X[,"map"] + diabetes$X[, "age:sex"])
-summary(model_back_step1)
-model_back_step2 <- lm(diabetes$y ~ diabetes$X[,"bmi"] + diabetes$X[,"map"] + diabetes$X[, "age:sex"])
-summary(model_back_step2)
-```
 
 This section is simple Backwards Selection:
 
 ```{r}
-load("diabetes.RData")
-model_back_full <- lm(diabetes$y ~ diabetes$X)
+y <- as.data.frame(scale(diabetes$y))
+model_back_full <- lm(y ~ diabetes$X)
 summary(model_back_full)
-model_back_step1 <- lm(diabetes$y ~ diabetes$X[,"sex"] + diabetes$X[,"bmi"] + diabetes$X[,"map"] + diabetes$X[, "age:sex"])
+model_back_step1 <- lm(y ~ diabetes$X[,"sex"] + diabetes$X[,"bmi"] + diabetes$X[,"map"] + diabetes$X[, "age:sex"])
 summary(model_back_step1)
-model_back_step2 <- lm(diabetes$y ~ diabetes$X[,"bmi"] + diabetes$X[,"map"] + diabetes$X[, "age:sex"])
+model_back_step2 <- lm(y ~ diabetes$X[,"bmi"] + diabetes$X[,"map"] + diabetes$X[, "age:sex"])
 summary(model_back_step2)
 ```
 
 This section is a LASSO:
 
 ```{r}
+y <- as.data.frame(scale(diabetes$y))
 library(glmnet) # lasso
-cv_lasso <- cv.glmnet(x=diabetes$X, y=diabetes$y, alpha = 1, intercept=TRUE, family = "gaussian")
+cv_lasso <- cv.glmnet(x=diabetes$X, y=y, alpha = 1, intercept=TRUE, family = "gaussian")
 plot(cv_lasso)
-model_lasso <- glmnet(x=diabetes$X, y=diabetes$y, alpha = 1, intercept=TRUE, family = "gaussian", lambda = cv_lasso$lambda.min)
-coef(model_lasso, lambda = cv_lasso$lambda.min)
+model_lasso <- glmnet(x=diabetes$X, y=y, alpha = 1, intercept=TRUE, family = "gaussian", lambda = cv_lasso$lambda.1se)
+coef(model_lasso, lambda = cv_lasso$lambda.1se)
+#-log(cv_lasso$lambda.min)
+#-log(cv_lasso$lambda.1se)
 ```
