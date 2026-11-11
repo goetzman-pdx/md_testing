@@ -20,7 +20,7 @@ Using the LMMCMC package for S = 100,000:
 # Testing Daniel's official LMMCMC package for Matryoshka Doll
 library(LMMCMC)
 y <- scale(diabetes$y)
-md <- lm.mcmc(y, diabetes$X, model.prior = matryoshka_doll.prior(), coef.prior = hyper_g.prior(), burnin.iterations = 0, mcmc.iterations = 100000)
+md <- lm.mcmc(y, diabetes$X, model.prior = matryoshka_doll.prior(), coef.prior = hyper_g.prior(), burnin.iterations = 0, mcmc.iterations = 1000000)
 sum(md$postprobs.RN)
 #model_weights <- exp(md$logmarg+log(md$priorprobs))
 #model_weights <- model_weights/sum(model_weights) # normalize
@@ -163,10 +163,10 @@ for (loop in 2:s) {
   
 }
 
-results <- apply(z_s, 2, mean)
-results
-df <- as.data.frame(results)
-ggplot(df, aes(x = seq(1, 64, length=64), y = results)) + geom_col(fill = "#0000FF") + labs(title = expression(bold(paste("Marginal Inclusion Probability"))), subtitle = expression(paste("Uniform Prior")), x = "regressor index", y = expression(paste("P(", z[j], " = 1|y, X)"))) + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 32, face = "bold"), plot.subtitle = element_text(hjust = 0.5, size = 28, face = "bold"), axis.text = element_text(size = 18), axis.title.x = element_text(size = 28), axis.title.y = element_text(size = 28))
+results_uniform <- apply(z_s, 2, mean)
+results_uniform
+df <- as.data.frame(results_uniform)
+ggplot(df, aes(x = seq(1, 64, length=64), y = results_uniform)) + geom_col(fill = "#0000FF") + labs(title = expression(bold(paste("Marginal Inclusion Probability"))), subtitle = expression(paste("Uniform Prior")), x = "regressor index", y = expression(paste("P(", z[j], " = 1|y, X)"))) + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 32, face = "bold"), plot.subtitle = element_text(hjust = 0.5, size = 28, face = "bold"), axis.text = element_text(size = 18), axis.title.x = element_text(size = 28), axis.title.y = element_text(size = 28))
 ```
 
 
@@ -203,4 +203,42 @@ nz_coefs <- data.frame(
   Beta = s_coef[nz_indexes]
 )
 print(nz_coefs)
+```
+
+Poisson limiting distribution:
+
+```{r}
+eta <- 1
+theta <- log(1 + 1/eta)
+kmax <- 10
+k <- dpois(seq(0, kmax, length=(kmax+1)), theta)
+df <- cbind(seq(0, kmax, length=(kmax+1)), k)
+colnames(df) <- c("x", "p")
+head(df)
+ggplot(data=df, aes(x=x,  y=p)) + geom_line() + theme_minimal()
+```
+
+Results plot:
+
+```{r}
+#results <- matrix(0, nrow=64, ncol=4, byrow=TRUE)
+#results[,1] <- seq(1, 64, length=64)
+#results[,2] <- colnames(diabetes$X)
+#results[,3] <- marg_inc_probs
+#results[,4] <- results_uniform
+#dfr <- as.data.frame(results)
+#colnames(dfr) <- c("index", "covariate", "md", "uniform")
+#dfr$index <- as.numeric(dfr$index)
+#dfr$uniform <- as.numeric(dfr$uniform)
+#dfr$md <- as.numeric(dfr$md)
+#write.csv(dfr, file = "results.csv", row.names = TRUE)
+dfr <- read.csv("results.csv")
+df_long <- dfr |>
+  pivot_longer(
+    cols = c(md, uniform),  # Columns to unpivot
+    names_to = "prior",       # New column for old headers
+    values_to = "values"       # New column for values
+  )
+head(df_long)
+ggplot(df_long, aes(x = index, y = values, fill = prior)) + geom_col(position = "dodge") + labs(title = expression(bold(paste("Marginal Inclusion Probability"))), subtitle = expression(paste("Uniform Prior vs Matryoshka Doll Prior")), x = "regressor index", y = expression(paste("P(", z[j], " = 1|Y, X)"))) + theme_minimal() + theme(plot.title = element_text(hjust = 0.5, size = 32, face = "bold"), plot.subtitle = element_text(hjust = 0.5, size = 28, face = "bold"), axis.text = element_text(size = 18), axis.title.x = element_text(size = 28), axis.title.y = element_text(size = 28), legend.position = "top")
 ```
